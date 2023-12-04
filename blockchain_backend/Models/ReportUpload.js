@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-
+// const mongoose = require('mongoose');
+import mongoose from "mongoose";
 const ReportUpload = new mongoose.Schema({
   patientName: {
     type: String,
@@ -27,5 +27,5 @@ const ReportUpload = new mongoose.Schema({
 
 const Report = mongoose.model('Report', ReportUpload);
 
-module.exports = Report;
-// export default ReportUpload;
+// module.exports = Report;
+export default Report;

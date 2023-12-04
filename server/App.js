@@ -8,6 +8,13 @@ const Tests = require('./Models/tests');
 const Report = require('./Models/ReportUpload');
 const multer = require('multer');
 const mongoose = require('mongoose');
+// const blockchian_routes = require('./blockchain')
+// const Web3 = require('web3');
+// // import Web3 from 'web3';
+// const { REPORTS_SIMP_STORAGE_ADDRESS, REPORTS_SIMP_STORAGE_ABI } = require("./Config/ReportsConfig");
+// const { USERS_SIMP_STORAGE_ADDRESS, USERS_SIMP_STORAGE_ABI } = require("./Config/UsersConfig");
+// const { TESTS_SIMP_STORAGE_ADDRESS, TESTS_SIMP_STORAGE_ABI } = require("./Config/TestsConfig");
+
 
 
 
@@ -16,6 +23,9 @@ const secretKey = 'your-secret-key'; // Replace with your actual secret key
 
 const app = express();
 const port = 3001;
+
+// app.use( blockchian_routes)
+
 
 app.use(cors());
 app.use(express.json());

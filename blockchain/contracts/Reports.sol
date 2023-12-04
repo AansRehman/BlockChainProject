@@ -22,32 +22,68 @@ contract Reports {
         uint256 uploadedAt
     );
 
-    // Function to upload a new patient report
-    function uploadReport(
-        string memory _reportName,
-        string memory _reportFilePath
+    // // Function to upload a new patient report
+    // function uploadReport(
+    //     string memory _reportName,
+    //     string memory _reportFilePath
+    // ) public {
+    //     uint256 reportId = generateReportId();
+
+    //     require(
+    //         reports[reportId].patientAddress == address(0),
+    //         "Report with this ID already exists"
+    //     );
+
+    //     reports[reportId] = Report({
+    //         patientAddress: msg.sender,
+    //         reportName: _reportName,
+    //         reportFilePath: _reportFilePath,
+    //         uploadedAt: block.timestamp
+    //     });
+
+    //     emit ReportUploaded(
+    //         reportId,
+    //         msg.sender,
+    //         _reportName,
+    //         _reportFilePath,
+    //         block.timestamp
+    //     );
+    // }
+
+    function uploadReports(
+        uint256[] memory _reportIds,
+        string[] memory _reportNames,
+        string[] memory _reportFilePaths
     ) public {
-        uint256 reportId = generateReportId();
-
         require(
-            reports[reportId].patientAddress == address(0),
-            "Report with this ID already exists"
+            _reportIds.length == _reportNames.length &&
+                _reportNames.length == _reportFilePaths.length,
+            "Input length mismatch"
         );
 
-        reports[reportId] = Report({
-            patientAddress: msg.sender,
-            reportName: _reportName,
-            reportFilePath: _reportFilePath,
-            uploadedAt: block.timestamp
-        });
+        for (uint256 i = 0; i < _reportIds.length; i++) {
+            uint256 reportId = _reportIds[i];
 
-        emit ReportUploaded(
-            reportId,
-            msg.sender,
-            _reportName,
-            _reportFilePath,
-            block.timestamp
-        );
+            require(
+                reports[reportId].patientAddress == address(0),
+                "Report with this ID already exists"
+            );
+
+            reports[reportId] = Report({
+                patientAddress: msg.sender,
+                reportName: _reportNames[i],
+                reportFilePath: _reportFilePaths[i],
+                uploadedAt: block.timestamp
+            });
+
+            emit ReportUploaded(
+                reportId,
+                msg.sender,
+                _reportNames[i],
+                _reportFilePaths[i],
+                block.timestamp
+            );
+        }
     }
 
     // Function to get a patient report by ID
