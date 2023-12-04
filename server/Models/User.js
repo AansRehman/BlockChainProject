@@ -7,13 +7,14 @@ const userSchema = new mongoose.Schema({
   password: String,
   gender: String,
   age:Number,
-  roles: {
-    type: [{
-      type: String,
-      enum: ['admin', 'doctor', 'patient']
-    }],
-    default: ['patient'] // Default role assigned to a new user
-  },
+  role: String,
+  // roles: {
+  //   type: [{
+  //     type: String,
+  //     enum: ['doctor', 'patient']
+  //   }],
+  //   default: ['patient'] // Default role assigned to a new user
+  // },
   createdAt: {
     type: Date,
     default: Date.now // Set default value to current date/time

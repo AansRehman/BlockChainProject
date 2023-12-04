@@ -7,6 +7,8 @@ const Appointment = require('./Models/appointmentSchema');
 const Tests = require('./Models/tests');
 const Report = require('./Models/ReportUpload');
 const multer = require('multer');
+const mongoose = require('mongoose');
+
 
 
 
@@ -28,7 +30,7 @@ app.listen(port, () => {
 });
 
 app.post("/register", async (req, res) => {
-  const { name, email, password, gender ,age} = req.body;
+  const { name, email, password, gender ,age, role} = req.body;
 
   try {
     // Check if the email already exists in the database
@@ -44,7 +46,8 @@ app.post("/register", async (req, res) => {
       email,
       password,
       gender,
-      age
+      age, 
+      role,
       // roles: ['patient'],
     });
 
@@ -72,11 +75,26 @@ const upload = multer({ storage });
 
 app.post('/upload', upload.single('reportFile'), async (req, res) => {
   try {
-    const { patientName } = req.body;
+    const {patientName} = req.body;
+    const reportName= req.file.originalname;
+    console.log(req.file.originalname);
     const reportFile = req.file.path; // Assuming the file path is stored in req.file.path (using multer)
     console.log(req.body);
+    // const name  = patientName
+    const user = await User.findOne({name:patientName});
+    console.log(user.id);
+    console.log(patientName)
+    if (user === null) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+    if (!req.body) {
+      return res.status(400).json({ error: 'Empty request body' });
+    }
 
-    const newReport = new Report({ patientName, reportFile });
+    // Extract the user ID
+    const userId = user.id;
+
+    const newReport = new Report({ patientName, reportFile, userId, reportName });
     await newReport.save();
 
     res.status(201).json({ message: 'Report uploaded successfully', report: newReport });
@@ -85,16 +103,6 @@ app.post('/upload', upload.single('reportFile'), async (req, res) => {
     res.status(500).json({ error: 'Error uploading report' });
   }
 });
-
-
-
-
-
-
-
-
-
-
 
 app.post('/login', async (req, res) => {
   const { email, password } = req.body;
@@ -110,7 +118,7 @@ app.post('/login', async (req, res) => {
 
     if (passwordMatch) {
       const token = jwt.sign({ userId: user.id }, secretKey, { expiresIn: '1h' });
-      res.status(200).json({ message: 'Login successful', token });
+      res.status(200).json({ message: 'Login successful', token, role: user.role, id: user._id});
     } else {
       res.status(401).json({ message: 'Login failed: Incorrect password' });
     }
@@ -158,8 +166,28 @@ app.get('/profile', authenticateToken, async (req, res) => {
 
 app.get('/patients', async (req, res) => {
   try {
-    const patients = await User.find();
+    const patients = await User.find({ role: 'patient' });
     res.json(patients);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/doctors', async (req, res) => {
+  try {
+    const doctors = await User.find({ role: 'doctor' });
+    res.json(doctors);
+
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.get('/users', async (req, res) => {
+  try {
+    const users = await User.find();
+    res.json(users);
 
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -234,27 +262,62 @@ app.delete('/patients/:id', async (req, res) => {
 
 // ... (other middleware and setup)
 
-// POST route to create a new appointment
+// // POST route to create a new appointment
+// app.post('/appointments', async (req, res) => {
+//   const { name, doctor, appointmentDate } = req.body;
+
+//   try {
+//     // Example with Mongoose to save an appointment
+//     const newAppointment = new Appointment({ name, doctor, appointmentDate });
+//     await newAppointment.save();
+
+//     res.status(201).json({ message: 'Appointment scheduled successfully' });
+//   } catch (error) {
+//     console.error('Error scheduling appointment:', error);
+//     res.status(500).json({ error: 'Error scheduling appointment' });
+//   }
+// });
+
 app.post('/appointments', async (req, res) => {
   const { name, doctor, appointmentDate } = req.body;
 
   try {
-    // Example with Mongoose to save an appointment
-    const newAppointment = new Appointment({ name, doctor, appointmentDate });
-    await newAppointment.save();
+    // Find the user by the patient's name
+    const user = await User.findOne({ name });
 
-    res.status(201).json({ message: 'Appointment scheduled successfully' });
+    if (!user) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    // Extract the user ID
+    const userId = user.id;
+
+    const appointment = new Appointment({
+      name,
+      doctor,
+      appointmentDate,
+      userId
+    });
+
+    const savedAppointment = await appointment.save();
+    res.status(201).json(savedAppointment);
   } catch (error) {
-    console.error('Error scheduling appointment:', error);
-    res.status(500).json({ error: 'Error scheduling appointment' });
+    console.error('Error creating appointment:', error);
+    res.status(500).json({ error: 'Error creating appointment' });
   }
 });
+
 
 // GET route to fetch all appointments
 app.get('/appointments', async (req, res) => {
   try {
     // Example with Mongoose to fetch all appointments
     const appointments = await Appointment.find();
+    // // Get the user ID from the authenticated token
+    // const userId = req.user.userId;
+
+    // // Fetch appointments associated with the user ID
+    // const appointments = await Appointment.find({ userId });
 
     res.status(200).json(appointments);
   } catch (error) {
@@ -279,6 +342,29 @@ app.get('/appointments/:id', async (req, res) => {
   } catch (error) {
     console.error('Error fetching appointment:', error);
     res.status(500).json({ error: 'Error fetching appointment' });
+  }
+});
+
+app.get('/userAppointments/:userId', async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    // Ensure that the userId is a valid ObjectId
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    // Example with Mongoose to find appointments by user ID
+    const appointments = await Appointment.find({ userId });
+
+    if (!appointments || appointments.length === 0) {
+      return res.status(404).json({ error: 'Appointments not found for the user' });
+    }
+
+    res.status(200).json(appointments);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Error fetching appointments' });
   }
 });
 
@@ -330,18 +416,119 @@ app.delete('/appointments/:id', async (req, res) => {
 // ...
 
 
-// ...
 
 
 app.post('/doctor', async (req, res) => {
   try {
     const { name, age, tests, prescription } = req.body;
     console.log(req.body);
-    const newTests = new Tests({ name, age, tests, prescription });
+    
+    const user = await User.findOne({ name });
+
+    // Extract the user ID
+    const userId = user.id;
+    const newTests = new Tests({ name, age, tests, prescription, userId });
     await newTests.save();
     res.status(201).json(newTests);
   } catch (error) {
     res.status(500).json({ error: 'Error creating patient tests' });
   }
 
+});
+
+app.get('/getPrescription', async (req, res) => {
+  try {
+    const prescription = await Tests.find();
+
+    if (!prescription || prescription.length === 0) {
+      return res.status(404).json({ error: 'Prescription not found for the user' });
+    }
+
+    res.status(200).json(prescription);
+  } catch (error) {
+    console.error('Error fetching prescription:', error);
+    res.status(500).json({ error: 'Error fetching prescription' });
+  }
+});
+
+app.get('/getPrescription/:userId', async (req, res) => {
+  const { userId } = req.params;
+  console.log(userId)
+  try {
+    // Ensure that the userId is a valid ObjectId
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    // Example with Mongoose to find appointments by user ID
+    const prescriptions = await Tests.find({ userId: userId });
+
+    if (!prescriptions || prescriptions.length === 0) {
+      return res.status(404).json({ error: 'prescriptions not found for the user' });
+    }
+
+    res.status(200).json(prescriptions);
+  } catch (error) {
+    console.error('Error fetching prescriptions:', error);
+    res.status(500).json({ error: 'Error fetching prescriptions' });
+  }
+});
+
+
+app.get('/userReports', async (req, res) => {
+  try {
+    const reports = await Report.find();
+
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ error: 'Report not found for the user' });
+    }
+
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Error fetching appointments' });
+  }
+});
+
+app.get('/userReports/:userId', async (req, res) => {
+  const { userId } = req.params;
+  console.log(userId)
+  try {
+    // Ensure that the userId is a valid ObjectId
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID format' });
+    }
+
+    // Example with Mongoose to find appointments by user ID
+    const reports = await Report.find({ userId: userId });
+
+    if (!reports || reports.length === 0) {
+      return res.status(404).json({ error: 'Report not found for the user' });
+    }
+
+    res.status(200).json(reports);
+  } catch (error) {
+    console.error('Error fetching appointments:', error);
+    res.status(500).json({ error: 'Error fetching appointments' });
+  }
+});
+
+
+// DELETE route to delete an report by ID
+app.delete('/reports/:id', async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // Example with Mongoose to delete an appointment by ID
+    const deletedReport = await Report.findByIdAndDelete(id);
+
+    if (!deletedReport) {
+      return res.status(404).json({ error: 'Report not found' });
+    }
+
+    res.status(200).json({ message: 'Report deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting Report:', error);
+    res.status(500).json({ error: 'Error deleting Report' });
+  }
 });
