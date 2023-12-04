@@ -1,5 +1,5 @@
-const mongoose = require('mongoose');
-
+// const mongoose = require('mongoose');
+import mongoose from "mongoose";
 // Define a schema for the patient
 const tests = new mongoose.Schema({
   name: {
@@ -31,4 +31,5 @@ const tests = new mongoose.Schema({
 // Create a model using the schema
 const Patient = mongoose.model('Tests', tests);
 
-module.exports = Patient;
+// module.exports = Patient;
+export default Patient;
