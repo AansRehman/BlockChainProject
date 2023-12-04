@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.13;
 
-contract HealthCare {
+contract Reports {
     // Structure to represent a patient report
     struct Report {
         address patientAddress;
-        string patientName;
-        string reportFileHash; // In a real-world scenario, you might want to use IPFS or another decentralized storage system
+        string reportName;
+        string reportFilePath; // In a real-world scenario, you might want to use IPFS or another decentralized storage system
         uint256 uploadedAt;
     }
 
@@ -17,32 +17,35 @@ contract HealthCare {
     event ReportUploaded(
         uint256 indexed reportId,
         address indexed patientAddress,
-        string patientName,
-        string reportFileHash,
+        string reportName,
+        string reportFilePath,
         uint256 uploadedAt
     );
 
     // Function to upload a new patient report
     function uploadReport(
-        string memory _patientName,
-        string memory _reportFileHash
+        string memory _reportName,
+        string memory _reportFilePath
     ) public {
-        uint256 reportId = uint256(
-            keccak256(abi.encodePacked(msg.sender, block.timestamp))
+        uint256 reportId = generateReportId();
+
+        require(
+            reports[reportId].patientAddress == address(0),
+            "Report with this ID already exists"
         );
 
         reports[reportId] = Report({
             patientAddress: msg.sender,
-            patientName: _patientName,
-            reportFileHash: _reportFileHash,
+            reportName: _reportName,
+            reportFilePath: _reportFilePath,
             uploadedAt: block.timestamp
         });
 
         emit ReportUploaded(
             reportId,
             msg.sender,
-            _patientName,
-            _reportFileHash,
+            _reportName,
+            _reportFilePath,
             block.timestamp
         );
     }
@@ -54,9 +57,23 @@ contract HealthCare {
         Report storage report = reports[_reportId];
         return (
             report.patientAddress,
-            report.patientName,
-            report.reportFileHash,
+            report.reportName,
+            report.reportFilePath,
             report.uploadedAt
         );
+    }
+
+    // Internal function to generate a unique reportId
+    function generateReportId() internal view returns (uint256) {
+        return
+            uint256(
+                keccak256(
+                    abi.encodePacked(
+                        msg.sender,
+                        block.number,
+                        blockhash(block.number - 1)
+                    )
+                )
+            );
     }
 }
